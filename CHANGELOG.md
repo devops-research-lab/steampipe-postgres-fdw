@@ -1,3 +1,7 @@
+## v2.2.3 [2026-05-18]
+_Whats new_
+- Add support for building against PostgreSQL 18. Three localized, version-guarded source changes (`#if PG_VERSION_NUM >= 180000`): include `commands/explain_format.h` (PG18 EXPLAIN header split), use `PathKey.pk_cmptype`/`COMPARE_GT` (renamed from `pk_strategy`/`BTGreaterStrategyNumber`), and pass the new `disabled_nodes` and `fdw_restrictinfo` arguments to `create_foreignscan_path`. Behaviour on PostgreSQL 16 and earlier is unchanged.
+
 ## v2.2.2 [2026-03-31]
 _Dependencies_
 - Upgrade `google.golang.org/grpc` to `v1.79.3` to address `CVE-2026-33186`.
