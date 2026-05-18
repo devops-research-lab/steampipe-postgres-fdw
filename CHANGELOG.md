@@ -1,3 +1,7 @@
+## v2.3.0 [2026-06-10]
+_Whats new_
+- Add support for building against PostgreSQL 18. Three localized, version-guarded source changes (`#if PG_VERSION_NUM >= 180000`): include `commands/explain_format.h` (PG18 EXPLAIN header split), use `PathKey.pk_cmptype`/`COMPARE_GT` (renamed from `pk_strategy`/`BTGreaterStrategyNumber`), and pass the new `disabled_nodes` and `fdw_restrictinfo` arguments to `create_foreignscan_path`. Behaviour on PostgreSQL 16 and earlier is unchanged.
+
 ## v2.2.4 [2026-05-25]
 _Bug fixes_
 - Fix `statement_timeout`, `pg_cancel_backend`, and `pg_terminate_backend` having no effect when a plugin's gRPC stream stalls — a hung scan held `AccessShareLock` indefinitely, blocking partition swaps and other DDL until restart. ([#671](https://github.com/turbot/steampipe-postgres-fdw/issues/671), [#672](https://github.com/turbot/steampipe-postgres-fdw/pull/672))

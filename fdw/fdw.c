@@ -436,11 +436,17 @@ static void fdwGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid forei
                              baserel,
                              NULL, /* default pathtarget */
                              baserel->rows,
+#if PG_VERSION_NUM >= 180000
+                             0, /* disabled_nodes (PG18) */
+#endif
                              planstate->startupCost,
                              baserel->rows * baserel->reltarget->width * 100000, // table scan is very expensive
                              NIL,                                                /* no pathkeys */
                              NULL,
                              NULL,
+#if PG_VERSION_NUM >= 180000
+                             NIL, /* fdw_restrictinfo (PG18) */
+#endif
                               (void *)fdw_private));
 
   /* Add each ForeignPath previously found */
@@ -458,9 +464,15 @@ static void fdwGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid forei
           baserel,
           NULL, /* default pathtarget */
           path->path.rows,
+#if PG_VERSION_NUM >= 180000
+          0, /* disabled_nodes (PG18) */
+#endif
           path->path.startup_cost, path->path.total_cost,
           apply_pathkeys, NULL,
           NULL,
+#if PG_VERSION_NUM >= 180000
+          NIL, /* fdw_restrictinfo (PG18) */
+#endif
           (void *)fdw_private);
       newpath->path.param_info = path->path.param_info;
       add_path(baserel, (Path *)newpath);

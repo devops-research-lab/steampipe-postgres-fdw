@@ -6,6 +6,10 @@
 #include "catalog/pg_type.h"
 #include "commands/defrem.h"
 #include "commands/explain.h"
+#if PG_VERSION_NUM >= 180000
+/* PG18 moved the EXPLAIN property-output API into a separate header */
+#include "commands/explain_format.h"
+#endif
 #include "foreign/fdwapi.h"
 #include "foreign/foreign.h"
 #include "funcapi.h"
