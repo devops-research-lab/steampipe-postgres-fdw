@@ -542,8 +542,8 @@ findPaths(PlannerInfo *root, RelOptInfo *baserel, List *possiblePaths,
 #if PG_VERSION_NUM >= 90500
             NULL,
 #endif
-#if PG_VERSION_NUM >= 180000
-            NIL, /* fdw_restrictinfo (PG18) */
+#if PG_VERSION_NUM >= 170000
+            NIL, /* fdw_restrictinfo (added in PG17) */
 #endif
             NULL);
 

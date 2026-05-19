@@ -444,8 +444,8 @@ static void fdwGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid forei
                              NIL,                                                /* no pathkeys */
                              NULL,
                              NULL,
-#if PG_VERSION_NUM >= 180000
-                             NIL, /* fdw_restrictinfo (PG18) */
+#if PG_VERSION_NUM >= 170000
+                             NIL, /* fdw_restrictinfo (added in PG17) */
 #endif
                               (void *)fdw_private));
 
@@ -470,8 +470,8 @@ static void fdwGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid forei
           path->path.startup_cost, path->path.total_cost,
           apply_pathkeys, NULL,
           NULL,
-#if PG_VERSION_NUM >= 180000
-          NIL, /* fdw_restrictinfo (PG18) */
+#if PG_VERSION_NUM >= 170000
+          NIL, /* fdw_restrictinfo (added in PG17) */
 #endif
           (void *)fdw_private);
       newpath->path.param_info = path->path.param_info;
