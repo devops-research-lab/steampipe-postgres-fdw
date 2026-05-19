@@ -1,3 +1,7 @@
+## v2.2.3 [2026-05-19]
+_Dependencies_
+- Bump `github.com/jackc/pgx/v5` to `v5.9.2` to remediate `CVE-2026-41889` (`GHSA-j88v-2chj-qfwx`).
+
 ## v2.2.2 [2026-03-31]
 _Dependencies_
 - Upgrade `google.golang.org/grpc` to `v1.79.3` to address `CVE-2026-33186`.
