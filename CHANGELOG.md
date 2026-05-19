@@ -1,6 +1,6 @@
 ## v2.3.0 [2026-06-10]
 _Whats new_
-- Add support for building against PostgreSQL 18. Three localized, version-guarded source changes (`#if PG_VERSION_NUM >= 180000`): include `commands/explain_format.h` (PG18 EXPLAIN header split), use `PathKey.pk_cmptype`/`COMPARE_GT` (renamed from `pk_strategy`/`BTGreaterStrategyNumber`), and pass the new `disabled_nodes` and `fdw_restrictinfo` arguments to `create_foreignscan_path`. Behaviour on PostgreSQL 16 and earlier is unchanged.
+- Add support for building against PostgreSQL 18. Localized, version-guarded source changes: include `commands/explain_format.h` (PG18 EXPLAIN header split) and use `PathKey.pk_cmptype`/`COMPARE_GT` instead of `pk_strategy`/`BTGreaterStrategyNumber` (both `#if PG_VERSION_NUM >= 180000`); and pass the extra `create_foreignscan_path` arguments — `fdw_restrictinfo` (added in PostgreSQL 17, `#if PG_VERSION_NUM >= 170000`) and `disabled_nodes` (added in PostgreSQL 18, `#if PG_VERSION_NUM >= 180000`). Behaviour on PostgreSQL 16 and earlier is unchanged.
 
 ## v2.2.4 [2026-05-25]
 _Bug fixes_
