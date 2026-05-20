@@ -13,6 +13,7 @@
 #include "catalog/pg_operator.h"
 #include "mb/pg_wchar.h"
 #include "nodes/makefuncs.h"
+#include "nodes/nodeFuncs.h"
 #include "utils/lsyscache.h"
 #include "miscadmin.h"
 #include "parser/parsetree.h"
@@ -22,6 +23,34 @@
 /* Third argument to get_attname was introduced in [8237f27] (release 11) */
 #if PG_VERSION_NUM >= 110000
 #define get_attname(x, y) get_attname(x, y, true)
+#endif
+
+#if PG_VERSION_NUM >= 180000
+/*
+ * PG18 dropped the T_RestrictInfo case from expression_tree_walker
+ * (src/backend/nodes/nodeFuncs.c). When the FDW walks a clause subtree
+ * that contains a nested RestrictInfo (the orclause cache, certain
+ * join-equivalence-class derived predicates), the walker hits the
+ * unrecognized node tag (318) and elogs
+ * "unrecognized node type: 318". Restore the PG<=17 behaviour with a
+ * pre-pass mutator that replaces each RestrictInfo with its wrapped
+ * clause before pull_var_clause's walker sees it.
+ */
+static Node *
+strip_restrictinfo_mutator(Node *node, void *context)
+{
+    if (node == NULL)
+        return NULL;
+    if (IsA(node, RestrictInfo))
+        return strip_restrictinfo_mutator(
+            (Node *) ((RestrictInfo *) node)->clause, context);
+    return expression_tree_mutator(node, strip_restrictinfo_mutator, context);
+}
+#define PULL_VAR_CLAUSE_PG18_SAFE(node, flags) \
+    pull_var_clause(strip_restrictinfo_mutator((node), NULL), (flags))
+#else
+#define PULL_VAR_CLAUSE_PG18_SAFE(node, flags) \
+    pull_var_clause((node), (flags))
 #endif
 
 char *getOperatorString(Oid opoid);
@@ -59,7 +88,7 @@ extractColumns(List *reltargetlist, List *restrictinfolist)
     List *targetcolumns;
     Node *node = (Node *)lfirst(lc);
 
-    targetcolumns = pull_var_clause(node,
+    targetcolumns = PULL_VAR_CLAUSE_PG18_SAFE(node,
 #if PG_VERSION_NUM >= 90600
                                     PVC_RECURSE_AGGREGATES |
                                         PVC_RECURSE_PLACEHOLDERS);
@@ -74,7 +103,7 @@ extractColumns(List *reltargetlist, List *restrictinfolist)
   {
     List *targetcolumns;
     RestrictInfo *node = (RestrictInfo *)lfirst(lc);
-    targetcolumns = pull_var_clause((Node *)node->clause,
+    targetcolumns = PULL_VAR_CLAUSE_PG18_SAFE((Node *)node->clause,
 #if PG_VERSION_NUM >= 90600
                                     PVC_RECURSE_AGGREGATES |
                                         PVC_RECURSE_PLACEHOLDERS);
@@ -341,7 +370,7 @@ colnameFromVar(Var *var, PlannerInfo *root, FdwPlanState *planstate)
  */
 bool isAttrInRestrictInfo(Index relid, AttrNumber attno, RestrictInfo *restrictinfo)
 {
-  List *vars = pull_var_clause((Node *)restrictinfo->clause,
+  List *vars = PULL_VAR_CLAUSE_PG18_SAFE((Node *)restrictinfo->clause,
 #if PG_VERSION_NUM >= 90600
                                PVC_RECURSE_AGGREGATES |
                                    PVC_RECURSE_PLACEHOLDERS);
