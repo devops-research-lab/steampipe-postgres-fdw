@@ -58,11 +58,11 @@ inst:
 	mkdir -p ../build-${PLATFORM}
 	rm -f ../build-${PLATFORM}/*
 
-	cp steampipe_postgres_fdw.so ../build-${PLATFORM}
+	@if [ -f steampipe_postgres_fdw.dylib ]; then cp steampipe_postgres_fdw.dylib ../build-${PLATFORM}/steampipe_postgres_fdw.so; else cp steampipe_postgres_fdw.so ../build-${PLATFORM}/steampipe_postgres_fdw.so; fi
 	cp steampipe_postgres_fdw.control ../build-${PLATFORM}
 	cp steampipe_postgres_fdw--1.0.sql ../build-${PLATFORM}
-	
-	rm steampipe_postgres_fdw.so
+
+	rm -f steampipe_postgres_fdw.so steampipe_postgres_fdw.dylib
 	rm steampipe_postgres_fdw.a
 	rm steampipe_postgres_fdw.h
 	
