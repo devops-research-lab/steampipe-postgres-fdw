@@ -1,6 +1,7 @@
 ## v2.3.0 [2026-06-10]
 _Whats new_
 - Add support for building against PostgreSQL 18. Localized, version-guarded source changes: include `commands/explain_format.h` (PG18 EXPLAIN header split) and use `PathKey.pk_cmptype`/`COMPARE_GT` instead of `pk_strategy`/`BTGreaterStrategyNumber` (both `#if PG_VERSION_NUM >= 180000`); and pass the extra `create_foreignscan_path` arguments — `fdw_restrictinfo` (added in PostgreSQL 17, `#if PG_VERSION_NUM >= 170000`) and `disabled_nodes` (added in PostgreSQL 18, `#if PG_VERSION_NUM >= 180000`). Behaviour on PostgreSQL 16 and earlier is unchanged.
+- Handle nested `RestrictInfo` nodes in `pull_var_clause` on PostgreSQL 18 — multi-table JOINs on foreign tables failed with `unrecognized node type: 318` without this. (`#if PG_VERSION_NUM >= 180000`; no change on earlier versions.)
 
 ## v2.2.4 [2026-05-25]
 _Bug fixes_
