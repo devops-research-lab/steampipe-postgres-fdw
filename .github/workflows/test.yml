@@ -1,150 +1,143 @@
 name: FDW Acceptance Tests
 on:
-  pull_request:
-
+  push: null
 jobs:
-  golangci_lint:    
-    name: golangci-lint
-    runs-on: ubuntu-22.04
+  golangci_lint:
+    runs-on: ubuntu-20.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 1.22
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v6
+      continue-on-error: true
+      with:
+        version: v1.52.2
+        args: --timeout=15m --config=.golangci.yml
+    - name: Checkout Steampipe
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        repository: turbot/steampipe
+        path: steampipe
+    - name: Fetching Go Cache Paths
+      id: go-cache-paths
+      run: 'echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
 
-      - name: Set up Go
-        uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
-        with:
-          go-version: 1.24
+        echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6.5.2
-        continue-on-error: true # we dont want to enforce just yet
-        with:
-          version: v1.52.2
-          args: --timeout=15m --config=.golangci.yml
+        '
+    - name: Go Build Cache
+      id: build-cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.go-cache-paths.outputs.go-build }}
+        key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+    - name: Go Mod Cache
+      id: mod-cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.go-cache-paths.outputs.go-mod }}
+        key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+    - name: Build Steampipe
+      run: 'echo "PATH=$PATH:$HOME/build:/home/runner" >> $GITHUB_ENV
 
-  build_and_test:
-    name: Build and run tests
-    needs: golangci_lint
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Set up Go
-        uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
-        with:
-          go-version: 1.24
+        ls /home/runner/work/steampipe-postgres-fdw/steampipe-postgres-fdw
 
-      - name: Checkout Steampipe
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          submodules: true
-          repository: turbot/steampipe
-          path: steampipe
+        cd /home/runner/work/steampipe-postgres-fdw/steampipe-postgres-fdw/steampipe
 
-      - name: Fetching Go Cache Paths
-        id: go-cache-paths
-        run: |
-          echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
-          echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+        go get
 
-      - name: Go Build Cache
-        id: build-cache
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ steps.go-cache-paths.outputs.go-build }}
-          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        go build -o /home/runner/steampipe
 
-      - name: Go Mod Cache
-        id: mod-cache
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ${{ steps.go-cache-paths.outputs.go-mod }}
-          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
-          
-      - name: Build Steampipe
-        run: |
-          echo "PATH=$PATH:$HOME/build:/home/runner" >> $GITHUB_ENV
-          ls /home/runner/work/steampipe-postgres-fdw/steampipe-postgres-fdw
-          cd /home/runner/work/steampipe-postgres-fdw/steampipe-postgres-fdw/steampipe
-          go get
-          go build -o /home/runner/steampipe -ldflags "-X main.version=0.0.0-dev.0"
+        '
+    - name: Run steampipe
+      run: 'steampipe query "select 1 as col"
 
-      - name: Run steampipe
-        run: |
-          steampipe --version
-          steampipe query "select 1 as col"
+        '
+    - name: Checkout FDW
+      uses: actions/checkout@v4
+      with:
+        repository: turbot/steampipe-postgres-fdw
+        path: steampipe-postgres-fdw
+    - name: Setup apt-get
+      run: 'sudo sh -c ''echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main"
+        > /etc/apt/sources.list.d/pgdg.list''
 
-      - name: Checkout FDW
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: turbot/steampipe-postgres-fdw
-          path: steampipe-postgres-fdw
-          ref: ${{ github.event.ref }}
+        wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 
-      - name: Setup apt-get
-        run: |-
-          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-          sudo env ACCEPT_EULA=Y apt-get update
-          sudo env ACCEPT_EULA=Y apt-get upgrade
+        sudo env ACCEPT_EULA=Y apt-get update
 
-      - name: Install PostgreSQL14 Dev
-        run: |-
-          sudo apt-get -y install postgresql-server-dev-14
+        sudo env ACCEPT_EULA=Y apt-get upgrade'
+    - name: Install PostgreSQL14 Dev
+      run: sudo apt-get -y install postgresql-server-dev-14
+    - name: Find stuff and set env
+      run: '
 
-      - name: Find stuff and set env
-        run: |-
-          
-          which pg_config
-          pg_config --version
+        which pg_config
 
-          export PATH=$(pg_config --bindir):$PATH
-          export PGXS=$(pg_config --pgxs)
-      
-          export SERVER_LIB=$(pg_config --includedir)/14/server
-          export INTERNAL_LIB=$(pg_config --includedir)/internal
+        pg_config --version
 
-          export CFLAGS="$(pg_config --cflags) -I${SERVER_LIB} -I${INTERNAL_LIB} -g"
-          export PG_CFLAGS="$(pg_config --cflags) -I${SERVER_LIB} -I${INTERNAL_LIB} -g"
-      
-          export LDFLAGS=$(pg_config --ldflags)
-          export PG_LDFLAGS=$(pg_config --ldflags)
 
-          ls -la $SERVER_LIB
-          ls -la $INTERNAL_LIB
+        export PATH=$(pg_config --bindir):$PATH
 
-      - name: Build FDW
-        run: |
-          cd ~/work/steampipe-postgres-fdw/steampipe-postgres-fdw/steampipe-postgres-fdw/
-          make install
-          
-      - name: GZip
-        run: |
-          cd ~/work/steampipe-postgres-fdw/steampipe-postgres-fdw/steampipe-postgres-fdw
-          tar -czvf ../build.tar.gz ./build-$(uname)
+        export PGXS=$(pg_config --pgxs)
 
-      - name: Upload FDW Build
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: fdw-build
-          path: build.tar.gz
 
-      - name: Setup BATS
-        uses: mig4/setup-bats@af9a00deb21b5d795cabfeaa8d9060410377686d # v1.2.0
-        with:
-          bats-version: 1.2.1
+        export SERVER_LIB=$(pg_config --includedir)/14/server
 
-      - name: Install Chaos plugin from registry
-        run: |
-          steampipe query "select 1 as a"
-          steampipe plugin install chaos
+        export INTERNAL_LIB=$(pg_config --includedir)/internal
 
-      - name: Go install jd
-        run: |
-          go install github.com/josephburnett/jd@latest
 
-      - name: Run tests
-        timeout-minutes: 6
-        run: |
-          cd /home/runner/work/steampipe-postgres-fdw/steampipe-postgres-fdw/steampipe
-          chmod +x tests/acceptance/run.sh
-          ./tests/acceptance/run.sh chaos_and_query.bats
+        export CFLAGS="$(pg_config --cflags) -I${SERVER_LIB} -I${INTERNAL_LIB} -g"
 
+        export PG_CFLAGS="$(pg_config --cflags) -I${SERVER_LIB} -I${INTERNAL_LIB} -g"
+
+
+        export LDFLAGS=$(pg_config --ldflags)
+
+        export PG_LDFLAGS=$(pg_config --ldflags)
+
+
+        ls -la $SERVER_LIB
+
+        ls -la $INTERNAL_LIB'
+    - name: Build FDW
+      run: 'cd ~/work/steampipe-postgres-fdw/steampipe-postgres-fdw/steampipe-postgres-fdw/
+
+        make install
+
+        '
+    - name: GZip
+      run: 'cd ~/work/steampipe-postgres-fdw/steampipe-postgres-fdw/steampipe-postgres-fdw
+
+        tar -czvf ../build.tar.gz ./build-$(uname)
+
+        '
+    - name: Upload FDW Build
+      uses: actions/upload-artifact@v4
+      with:
+        name: fdw-build
+        path: build.tar.gz
+    - name: Setup BATS
+      uses: mig4/setup-bats@v1
+      with:
+        bats-version: 1.2.1
+    - name: Install Chaos plugin from registry
+      run: steampipe plugin install chaos
+    - name: Go install jd
+      run: 'go install github.com/josephburnett/jd@latest
+
+        '
+    - name: Run tests
+      timeout-minutes: 6
+      run: 'cd /home/runner/work/steampipe-postgres-fdw/steampipe-postgres-fdw/steampipe
+
+        chmod +x tests/acceptance/run.sh
+
+        ./tests/acceptance/run.sh chaos_and_query.bats
+
+        '
